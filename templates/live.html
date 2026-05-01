@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Detection — EmotionAI</title>
+    <meta name="description" content="Real-time facial emotion detection using your webcam powered by deep learning.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="logo">EmotionAI</div>
+        <div class="hamburger" onclick="toggleMenu()">&#9776;</div>
+        <ul class="nav-links">
+            <li><a href="/" onclick="stopCamera()">Home</a></li>
+            <li><a href="/live" class="active">Live Detection</a></li>
+            <li><a href="/about" onclick="stopCamera()">About</a></li>
+            <li><a href="/contact" onclick="stopCamera()">Contact</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container">
+            <!-- Hero -->
+            <div class="hero" style="padding-bottom: 24px;">
+                <div class="hero-badge">
+                    <span class="dot" style="background: var(--error);"></span>
+                    Live Webcam Detection
+                </div>
+                <h1>Real-Time <span class="gradient-text">Emotion Analysis</span></h1>
+                <p class="subtitle">Your webcam feed is processed locally. Emotions are detected frame by frame in real
+                    time.</p>
+            </div>
+
+            <!-- Live Layout -->
+            <div class="live-layout" style="animation: fadeInUp 0.6s ease 0.2s both;">
+                <!-- Video Feed -->
+                <div class="glass-card" style="padding: 16px;">
+                    <div class="live-feed-container" id="feed-container">
+                        <!-- Loading State -->
+                        <div class="loading-state" id="loading-state">
+                            <div class="loading-spinner"></div>
+                            <p>Starting camera...<br><small style="color: var(--text-muted);">Please allow camera
+                                    access</small></p>
+                        </div>
+                        <!-- Video Feed Image -->
+                        <img id="live-feed" style="display: none;" alt="Live webcam feed" />
+                        <!-- Live Indicator Overlay -->
+                        <div class="live-feed-overlay" id="live-overlay" style="display: none;">
+                            <div class="live-indicator">
+                                <span class="rec-dot"></span>
+                                LIVE
+                            </div>
+                            <div class="live-indicator" id="fps-indicator">
+                                👤 <span id="face-count-overlay">0</span> faces
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 16px;">
+                        <a href="/" class="btn btn-secondary" style="flex:1;" onclick="stopCamera()">
+                            ⏹ Stop & Go Home
+                        </a>
+                        <button class="btn btn-outline" style="flex:1;" onclick="toggleCamera()" id="toggle-btn">
+                            ⏸ Pause
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Sidebar -->
+                <div class="stats-sidebar">
+                    <!-- Current Emotion -->
+                    <div class="stat-card">
+                        <h3>Current Emotion</h3>
+                        <div class="stat-emotion-display">
+                            <span class="stat-emotion-emoji" id="stat-emoji">🎭</span>
+                            <div class="stat-emotion-label" id="stat-label">Waiting...</div>
+                            <div class="stat-confidence-text" id="stat-confidence">—</div>
+                        </div>
+                    </div>
+
+                    <!-- Emotion Breakdown -->
+                    <div class="stat-card">
+                        <h3>Emotion Breakdown</h3>
+                        <div class="live-score-list" id="score-list">
+                            <div class="live-score-row">
+                                <span class="ls-label">angry</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-angry" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-angry">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">disgust</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-disgust" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-disgust">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">fear</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-fear" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-fear">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">happy</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-happy" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-happy">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">neutral</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-neutral" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-neutral">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">sad</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-sad" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-sad">0%</span>
+                            </div>
+                            <div class="live-score-row">
+                                <span class="ls-label">surprise</span>
+                                <div class="ls-bar">
+                                    <div class="ls-bar-fill" id="bar-surprise" style="width:0%"></div>
+                                </div>
+                                <span class="ls-value" id="val-surprise">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detection Info -->
+                    <div class="stat-card">
+                        <h3>Detection Info</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Faces Detected</span>
+                                <span style="font-weight: 600;" id="stat-faces">0</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Model</span>
+                                <span style="font-weight: 600;">Mini-Xception</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Detector</span>
+                                <span style="font-weight: 600;">MTCNN</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Status</span>
+                                <span style="font-weight: 600; color: var(--success);" id="stat-status">● Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Built with ❤️ by Darshan Makwana • Powered by TensorFlow & MTCNN</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script>
+        const emojiMap = {
+            'angry': '😠', 'disgust': '🤢', 'fear': '😨',
+            'happy': '😊', 'neutral': '😐', 'sad': '😢', 'surprise': '😲'
+        };
+
+        let statsInterval = null;
+        let isPaused = false;
+
+        function startCamera() {
+            fetch('/start_feed')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'started') {
+                        const img = document.getElementById('live-feed');
+                        img.src = "{{ url_for('video_feed') }}";
+                        img.style.display = 'block';
+                        document.getElementById('loading-state').style.display = 'none';
+                        document.getElementById('live-overlay').style.display = 'flex';
+                        // Start polling live stats
+                        statsInterval = setInterval(updateStats, 800);
+                    } else {
+                        document.querySelector('#loading-state p').innerHTML =
+                            '❌ Failed to start camera<br><small>Check webcam connection</small>';
+                    }
+                })
+                .catch(err => {
+                    document.querySelector('#loading-state p').innerHTML =
+                        '❌ Camera error<br><small>' + err.message + '</small>';
+                });
+        }
+
+        function stopCamera() {
+            if (statsInterval) clearInterval(statsInterval);
+            const img = document.getElementById('live-feed');
+            if (img) { img.src = ''; img.style.display = 'none'; }
+            fetch('/stop_feed').catch(() => { });
+        }
+
+        function toggleCamera() {
+            const btn = document.getElementById('toggle-btn');
+            if (!isPaused) {
+                stopCamera();
+                isPaused = true;
+                btn.innerHTML = '▶ Resume';
+                document.getElementById('stat-status').innerHTML = '<span style="color: var(--warning);">● Paused</span>';
+            } else {
+                startCamera();
+                isPaused = false;
+                btn.innerHTML = '⏸ Pause';
+                document.getElementById('stat-status').innerHTML = '<span style="color: var(--success);">● Active</span>';
+            }
+        }
+
+        function updateStats() {
+            fetch('/live_stats')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.current_emotion) {
+                        document.getElementById('stat-emoji').textContent = emojiMap[data.current_emotion] || '🎭';
+                        document.getElementById('stat-label').textContent = data.current_emotion;
+                        document.getElementById('stat-confidence').textContent = data.confidence + '% confidence';
+                    }
+                    document.getElementById('stat-faces').textContent = data.faces_count || 0;
+                    document.getElementById('face-count-overlay').textContent = data.faces_count || 0;
+
+                    // Update score bars
+                    if (data.all_scores) {
+                        for (const [emotion, score] of Object.entries(data.all_scores)) {
+                            const bar = document.getElementById('bar-' + emotion);
+                            const val = document.getElementById('val-' + emotion);
+                            if (bar) bar.style.width = score + '%';
+                            if (val) val.textContent = score.toFixed(0) + '%';
+                        }
+                    }
+                })
+                .catch(() => { });
+        }
+
+        // Lifecycle
+        window.addEventListener('load', startCamera);
+        window.addEventListener('beforeunload', () => navigator.sendBeacon('/stop_feed'));
+
+        // Navbar scroll
+        window.addEventListener('scroll', () => {
+            document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+        });
+    </script>
+</body>
+
+</html>

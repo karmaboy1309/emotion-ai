@@ -1,0 +1,23 @@
+FACIAL EMOTION RECOGNITION - TRAINING SUMMARY
+==================================================
+
+Date: 2026-03-22 17:52:01
+Training Time: 122.3 minutes
+Total Epochs Run: 60
+Final Accuracy: 56.13%
+Best Val Accuracy: 56.13%
+
+Classification Report:
+              precision    recall  f1-score   support
+
+       angry       0.51      0.46      0.48       958
+     disgust       0.28      0.58      0.38       111
+        fear       0.38      0.34      0.36      1024
+       happy       0.80      0.78      0.79      1774
+     neutral       0.50      0.52      0.51      1233
+         sad       0.45      0.41      0.43      1247
+    surprise       0.62      0.78      0.69       831
+
+    accuracy                           0.56      7178
+   macro avg       0.51      0.55      0.52      7178
+weighted avg       0.56      0.56      0.56      7178

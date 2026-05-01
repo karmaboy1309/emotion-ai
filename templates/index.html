@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotionAI — Facial Emotion Recognition</title>
+    <meta name="description"
+        content="Detect facial emotions in real-time using AI. Upload images or use your webcam for instant emotion analysis.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="logo">EmotionAI</div>
+        <div class="hamburger" onclick="toggleMenu()">&#9776;</div>
+        <ul class="nav-links">
+            <li><a href="/" class="active">Home</a></li>
+            <li><a href="/live">Live Detection</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container">
+            <!-- Hero Section -->
+            <div class="hero">
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    AI-Powered Emotion Detection
+                </div>
+                <h1>Understand Emotions<br>with <span class="gradient-text">Deep Learning</span></h1>
+                <p class="subtitle">Upload a photo to detect facial emotions instantly, or try real-time live detection
+                    with your webcam.</p>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="main-grid">
+                <!-- Upload Card -->
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="icon">📷</div>
+                        <div>
+                            <h2>Image Upload</h2>
+                            <p>Drag & drop or click to upload</p>
+                        </div>
+                    </div>
+                    <form action="/" method="POST" enctype="multipart/form-data" id="upload-form">
+                        <div class="upload-zone" id="upload-zone">
+                            <div class="upload-icon">🖼️</div>
+                            <h3>Choose an image</h3>
+                            <p>PNG, JPG or JPEG • Max 10MB</p>
+                            <div class="file-input-wrapper">
+                                <input type="file" name="image" id="image-input" accept="image/*" required>
+                            </div>
+                            <div class="file-name-display" id="file-name"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full mt-24" id="predict-btn">
+                            <span class="btn-text">🔍 Analyze Emotion</span>
+                            <span class="spinner"></span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Results Card -->
+                <div class="glass-card results-panel">
+                    <div class="glass-card-header">
+                        <div class="icon">📊</div>
+                        <div>
+                            <h2>Analysis Results</h2>
+                            <p>Emotion detection breakdown</p>
+                        </div>
+                    </div>
+
+                    {% if result %}
+                    {% if faces_count %}
+                    <div class="faces-count-badge">
+                        👤 {{ faces_count }} face{{ 's' if faces_count | int > 1 else '' }} detected
+                    </div>
+                    {% endif %}
+
+                    <div class="emotion-result-main">
+                        <div class="emotion-emoji">{{ faces_data[0].emoji }}</div>
+                        <div class="emotion-label">{{ faces_data[0].emotion }}</div>
+                        <div class="emotion-confidence">{{ faces_data[0].confidence }}% confidence</div>
+                        <div class="confidence-bar-wrapper">
+                            <div class="confidence-bar-bg">
+                                <div class="confidence-bar-fill" style="width: {{ faces_data[0].confidence }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scores Breakdown -->
+                    <h3 style="font-size:14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Emotion Scores</h3>
+                    <div class="scores-grid">
+                        {% for emotion, score in faces_data[0].scores.items() %}
+                        <div class="score-item {{ 'top-emotion' if emotion == faces_data[0].emotion else '' }}">
+                            <div class="score-header">
+                                <span class="score-label">{{ emotion }}</span>
+                                <span class="score-value">{{ score }}%</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width: {{ score }}%"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% elif error %}
+                    <div class="alert alert-error">
+                        ⚠️ {{ error }}
+                    </div>
+                    {% else %}
+                    <div class="loading-state">
+                        <div style="font-size: 64px; opacity: 0.3; margin-bottom: 16px;">🎭</div>
+                        <p>Upload an image to see<br>emotion analysis results here</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Result Image -->
+            {% if result and image %}
+            <div class="glass-card mt-32 text-center" style="animation: fadeInUp 0.4s ease;">
+                <div class="glass-card-header" style="justify-content: center;">
+                    <div class="icon">🖼️</div>
+                    <div>
+                        <h2>Processed Image</h2>
+                        <p>Detected faces highlighted with emotion labels</p>
+                    </div>
+                </div>
+                <div class="result-image-container">
+                    <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="Analyzed Image"
+                        class="result-image">
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Live Detection CTA -->
+            <div class="live-cta">
+                <a href="/live" class="live-btn">
+                    <span class="live-dot"></span>
+                    Try Live Webcam Detection
+                    <span style="color: var(--text-muted);">→</span>
+                </a>
+            </div>
+
+            <!-- Features Section -->
+            <div class="features-section">
+                <h2>Powerful Features</h2>
+                <p class="section-subtitle">Built with cutting-edge AI and deep learning technology</p>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Deep Learning Model</h3>
+                        <p>Mini-Xception CNN architecture trained on FER2013 dataset for accurate emotion
+                            classification.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👁️</div>
+                        <h3>MTCNN Face Detection</h3>
+                        <p>Multi-task Cascaded CNN for precise face detection with landmark alignment.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Confidence Scores</h3>
+                        <p>Get percentage breakdown for all 7 emotions with confidence indicators.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎥</div>
+                        <h3>Live Detection</h3>
+                        <p>Real-time webcam emotion detection with live stats and emotion tracking.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h3>Multi-Face Support</h3>
+                        <p>Detect and analyze emotions from multiple faces in a single image simultaneously.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Instant Results</h3>
+                        <p>Get emotion predictions in seconds powered by optimized TensorFlow inference.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Built with ❤️ by Darshan Makwana • Powered by TensorFlow & MTCNN</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script>
+        // File upload interaction
+        const uploadZone = document.getElementById('upload-zone');
+        const imageInput = document.getElementById('image-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const predictBtn = document.getElementById('predict-btn');
+
+        imageInput.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                fileNameDisplay.textContent = '📎 ' + this.files[0].name;
+                fileNameDisplay.classList.add('visible');
+                uploadZone.style.borderColor = 'var(--accent-primary)';
+                uploadZone.style.background = 'rgba(139, 92, 246, 0.05)';
+            }
+        });
+
+        // Drag & Drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            if (e.dataTransfer.files.length > 0) {
+                imageInput.files = e.dataTransfer.files;
+                fileNameDisplay.textContent = '📎 ' + e.dataTransfer.files[0].name;
+                fileNameDisplay.classList.add('visible');
+            }
+        });
+
+        // Submit loading state
+        document.getElementById('upload-form').addEventListener('submit', function () {
+            predictBtn.classList.add('loading');
+            predictBtn.disabled = true;
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+        });
+    </script>
+</body>
+
+</html>

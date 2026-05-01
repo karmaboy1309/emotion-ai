@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About — EmotionAI</title>
+    <meta name="description" content="Learn about EmotionAI's technology, architecture, and the team behind it.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="logo">EmotionAI</div>
+        <div class="hamburger" onclick="toggleMenu()">&#9776;</div>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/live">Live Detection</a></li>
+            <li><a href="/about" class="active">About</a></li>
+            <li><a href="/contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="container">
+            <div class="hero" style="padding-bottom: 24px;">
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    About the Project
+                </div>
+                <h1>How <span class="gradient-text">EmotionAI</span> Works</h1>
+                <p class="subtitle">An end-to-end deep learning pipeline for real-time facial emotion recognition.</p>
+            </div>
+
+            <div class="about-content" style="animation: fadeInUp 0.6s ease 0.2s both;">
+                <div class="glass-card mb-16">
+                    <div class="glass-card-header">
+                        <div class="icon">🏗️</div>
+                        <div>
+                            <h2>Architecture</h2>
+                            <p>How the system processes emotions</p>
+                        </div>
+                    </div>
+                    <p>EmotionAI uses a two-stage pipeline. First, <strong>MTCNN</strong> (Multi-task Cascaded
+                        Convolutional Network) detects faces in the input image or video frame with high precision,
+                        including facial landmark alignment.</p>
+                    <p>Second, each detected face region is passed through a <strong>Mini-Xception</strong> CNN model
+                        trained on the FER2013 dataset to classify the emotion into one of 7 categories: angry, disgust,
+                        fear, happy, neutral, sad, and surprise.</p>
+                    <p>The model outputs a probability distribution across all 7 emotions, giving you a confidence score
+                        for each detected emotion.</p>
+                </div>
+
+                <div class="glass-card mb-16">
+                    <div class="glass-card-header">
+                        <div class="icon">🎯</div>
+                        <div>
+                            <h2>Capabilities</h2>
+                            <p>What makes this system special</p>
+                        </div>
+                    </div>
+                    <div class="features-grid" style="margin-top: 8px;">
+                        <div class="feature-card">
+                            <div class="feature-icon">📸</div>
+                            <h3>Image Analysis</h3>
+                            <p>Upload any image to get instant emotion detection with confidence scores.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎥</div>
+                            <h3>Live Detection</h3>
+                            <p>Real-time emotion tracking through your webcam with live stat updates.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">👥</div>
+                            <h3>Multi-Face</h3>
+                            <p>Handles multiple faces in a single image with per-face emotion analysis.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="glass-card-header">
+                        <div class="icon">⚙️</div>
+                        <div>
+                            <h2>Tech Stack</h2>
+                            <p>Technologies powering EmotionAI</p>
+                        </div>
+                    </div>
+                    <div class="tech-stack">
+                        <span class="tech-tag">Python</span>
+                        <span class="tech-tag">Flask</span>
+                        <span class="tech-tag">TensorFlow</span>
+                        <span class="tech-tag">Keras</span>
+                        <span class="tech-tag">OpenCV</span>
+                        <span class="tech-tag">MTCNN</span>
+                        <span class="tech-tag">NumPy</span>
+                        <span class="tech-tag">HTML/CSS/JS</span>
+                        <span class="tech-tag">FER2013 Dataset</span>
+                        <span class="tech-tag">Mini-Xception CNN</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-32" style="animation: fadeInUp 0.6s ease 0.4s both;">
+                <a href="/" class="btn btn-primary btn-lg">← Try EmotionAI Now</a>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Built with ❤️ by Darshan Makwana • Powered by TensorFlow & MTCNN</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+        });
+    </script>
+</body>
+
+</html>

@@ -77,3 +77,23 @@ Feel free to contribute and improve this project. Fork it, make your changes, an
 ```bash
 git add README.md
 
+
+
+
+A Facial Emotion Detection System using AI/ML and Computer Vision.
+
+## Features
+- Real-time emotion detection (webcam)
+- Image upload analysis
+- CNN-based model
+
+## Tech Stack
+- Python
+- OpenCV
+- TensorFlow/Keras
+- Flask
+
+## How to Run
+1. Install requirements
+2. Run app.py
+3. Open localhost
