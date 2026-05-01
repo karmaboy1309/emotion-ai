@@ -8,5 +8,5 @@ matplotlib==3.9.0
 scikit-learn==1.5.0
 ipykernel==6.29.4
 jupyter==1.0.0
-mtcnn==1.0.0
+mtcnn==0.1.1
 

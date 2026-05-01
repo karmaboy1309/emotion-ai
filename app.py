@@ -24,8 +24,17 @@ emotion_emojis = {
     'happy': '😊', 'neutral': '😐', 'sad': '😢', 'surprise': '😲'
 }
 
-# Initialize MTCNN for accurate face detection
+# Initialize MTCNN for accurate face detection (used for still images)
 detector = MTCNN()
+
+# Lightweight detector for live stream (faster than MTCNN)
+haar_detector = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+
+# Live stream tuning (lower values = smoother, less CPU)
+LIVE_TARGET_FPS = 8
+LIVE_DETECT_EVERY_N = 6
+LIVE_MAX_WIDTH = 320
+LIVE_JPEG_QUALITY = 50
 
 # Store recent emotion detections for history
 emotion_history = []
@@ -54,6 +63,11 @@ class CameraManager:
                 self.camera = cv2.VideoCapture(0)
                 if not self.camera.isOpened():
                     return False
+                # Favor a smaller capture size to reduce CPU load
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+                self.camera.set(cv2.CAP_PROP_FPS, 15)
+                self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             self.is_running = True
             return True
 
@@ -199,43 +213,96 @@ def get_emotion_history():
 # Route to generate frames for live emotion detection
 def generate_frames():
     global live_stats
+    last_faces = []
+    frame_index = 0
+    last_emit = 0.0
     while camera_manager.is_running:
         frame = camera_manager.read_frame()
         if frame is None:
             continue
 
         try:
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            faces = detector.detect_faces(rgb_frame)
+            frame_index += 1
+            do_detect = (frame_index % LIVE_DETECT_EVERY_N) == 0
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            with live_stats_lock:
-                live_stats['faces_count'] = len(faces)
+            if do_detect:
+                height, width = frame.shape[:2]
+                scale = 1.0
+                small_frame = frame
+                if width > LIVE_MAX_WIDTH:
+                    scale = width / LIVE_MAX_WIDTH
+                    small_frame = cv2.resize(frame, (LIVE_MAX_WIDTH, int(height / scale)))
 
-            for face in faces:
-                x, y, w, h = face['box']
-                x, y = max(0, x), max(0, y)
+                gray_small = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+                faces = haar_detector.detectMultiScale(
+                    gray_small,
+                    scaleFactor=1.1,
+                    minNeighbors=5,
+                    minSize=(40, 40)
+                )
 
-                roi_gray = gray[y:y + h, x:x + w]
-                if roi_gray.size == 0:
-                    continue
+                last_faces = []
+                best_face = None
+                best_conf = -1.0
 
-                roi_gray = cv2.resize(roi_gray, (48, 48))
-                roi_gray = roi_gray / 255.0
-                roi_gray = np.expand_dims(roi_gray, axis=0)
-                roi_gray = np.expand_dims(roi_gray, axis=-1)
+                for (x, y, w, h) in faces:
+                    x, y = max(0, x), max(0, y)
 
-                predictions = model.predict(roi_gray, verbose=0)
-                emotion_index = np.argmax(predictions)
-                emotion_label = emotion_labels[emotion_index]
-                confidence = float(np.max(predictions) * 100)
+                    x = int(x * scale)
+                    y = int(y * scale)
+                    w = int(w * scale)
+                    h = int(h * scale)
 
-                # Update live stats
-                scores = {emotion_labels[i]: float(predictions[0][i] * 100) for i in range(len(emotion_labels))}
+                    roi_gray = gray[y:y + h, x:x + w]
+                    if roi_gray.size == 0:
+                        continue
+
+                    roi_gray = cv2.resize(roi_gray, (48, 48))
+                    roi_gray = roi_gray / 255.0
+                    roi_gray = np.expand_dims(roi_gray, axis=0)
+                    roi_gray = np.expand_dims(roi_gray, axis=-1)
+
+                    predictions = model.predict(roi_gray, verbose=0)
+                    emotion_index = np.argmax(predictions)
+                    emotion_label = emotion_labels[emotion_index]
+                    confidence = float(np.max(predictions) * 100)
+
+                    scores = {emotion_labels[i]: float(predictions[0][i] * 100) for i in range(len(emotion_labels))}
+
+                    face_data = {
+                        'x': x,
+                        'y': y,
+                        'w': w,
+                        'h': h,
+                        'emotion': emotion_label,
+                        'confidence': confidence,
+                        'scores': scores
+                    }
+                    last_faces.append(face_data)
+
+                    if confidence > best_conf:
+                        best_conf = confidence
+                        best_face = face_data
+
                 with live_stats_lock:
-                    live_stats['current_emotion'] = emotion_label
-                    live_stats['confidence'] = round(confidence, 1)
-                    live_stats['all_scores'] = {k: round(v, 1) for k, v in scores.items()}
+                    live_stats['faces_count'] = len(last_faces)
+                    if best_face:
+                        live_stats['current_emotion'] = best_face['emotion']
+                        live_stats['confidence'] = round(best_face['confidence'], 1)
+                        live_stats['all_scores'] = {k: round(v, 1) for k, v in best_face['scores'].items()}
+                    else:
+                        live_stats['current_emotion'] = None
+                        live_stats['confidence'] = 0
+                        live_stats['all_scores'] = {}
+            else:
+                with live_stats_lock:
+                    live_stats['faces_count'] = len(last_faces)
+
+            for face in last_faces:
+                x, y, w, h = face['x'], face['y'], face['w'], face['h']
+                emotion_label = face['emotion']
+                confidence = face['confidence']
 
                 # Draw styled rectangle
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (138, 43, 226), 2)
@@ -247,7 +314,13 @@ def generate_frames():
         except Exception as e:
             print(f"Frame processing error: {e}")
 
-        ret, buffer = cv2.imencode('.jpg', frame)
+        now = time.time()
+        if now - last_emit < (1.0 / LIVE_TARGET_FPS):
+            time.sleep(0.002)
+            continue
+        last_emit = now
+
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), LIVE_JPEG_QUALITY])
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
