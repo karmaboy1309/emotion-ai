@@ -3,18 +3,50 @@ __pycache__/
 *.py[cod]
 *.pyd
 *.pyo
-*.pyd
 *.so
 *.egg-info/
-.venv/
 venv/
+.venv/
+build/
+dist/
 
-# Logs
+# Confidential / Environment / Secrets
+.env
+.env.*
+*.env
+secrets.json
+credentials.json
+*.pem
+*.key
+*.pfx
+*.crt
+*.p12
+*.pkcs12
+config.local.py
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & Temporary Output
 *.log
+train_log.txt
+train_output.log
 
-# Jupyter
+# Temporary Test / Debug Scripts
+test_*.py
+
+# Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
 
-# OS
+# IDE / Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS System Files
 .DS_Store
 Thumbs.db
+desktop.ini
