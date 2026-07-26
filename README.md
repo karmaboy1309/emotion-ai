@@ -1,15 +1,27 @@
 <div align="center">
 
-```text
-  _____ __  __  ___ _____ ___ ___  _   _    _   ___ 
- | ____|  \/  |/ _ \_   _|_ _| _ \| \ | |  / \ |_ _|
- |  _| | |\/| | | | || |  | || |_) |  \| | / _ \ | | 
- | |___| |  | | |_| || |  | ||  _ <| |\  |/ ___ \| | 
- |_____|_|  |_|\___/ |_| |___|_| \_\_| \_/_/   \_\___|
-```
+  <img src="assets/header_banner.png" alt="EmotionAI Header Banner" width="100%" />
 
-# ✨ EmotionAI — Real-Time Facial Emotion Recognition & Analysis
-### *Next-Generation Full-Stack Deep Learning & Live Facial Emotion Analysis Platform*
+  <br />
+  <br />
+
+  <p align="center">
+    <strong>Detect, analyze, and classify human facial emotions in real-time using Deep Learning (Mini-Xception CNN), OpenCV, and Flask.</strong>
+  </p>
+
+  <br />
+
+  <p align="center">
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.8+"></a>
+    &nbsp;
+    <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/Flask-3.0%2B-000000?style=flat-square&logo=flask&logoColor=white" alt="Flask 3.0+"></a>
+    &nbsp;
+    <a href="https://www.tensorflow.org/"><img src="https://img.shields.io/badge/TensorFlow-2.x-FF6F00?style=flat-square&logo=tensorflow&logoColor=white" alt="TensorFlow 2.x"></a>
+    &nbsp;
+    <a href="https://opencv.org/"><img src="https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=flat-square&logo=opencv&logoColor=white" alt="OpenCV"></a>
+    &nbsp;
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-44CC11?style=flat-square" alt="License MIT"></a>
+  </p>
 
   <p align="center">
     <a href="#-overview">Overview</a> •
@@ -19,15 +31,6 @@
     <a href="#-quick-start-guide">Quick Start</a> •
     <a href="#-project-structure">Project Structure</a>
   </p>
-
-  <br />
-
-  [![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-  [![Flask](https://img.shields.io/badge/Flask-3.0%2B-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-  [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/)
-  [![Keras](https://img.shields.io/badge/Keras-Deep%20Learning-D00000?style=for-the-badge&logo=keras&logoColor=white)](https://keras.io/)
-  [![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)](https://opencv.org/)
-  [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
   <br />
   <hr />
@@ -51,7 +54,7 @@ Powered by a lightweight, high-performance **Mini-Xception Convolutional Neural 
 ### 🤖 Deep Learning & Mini-Xception CNN Engine
 - **Ultra-Efficient Architecture**: Utilizes Depthwise Separable Convolutions, Residual Skip-Connections, and Batch Normalization to achieve high classification accuracy with only **~60,000 trainable parameters**.
 - **Low-Latency Inference**: Optimized for real-time edge and web deployment without requiring expensive dedicated GPU hardware.
-- **Robust Feature Extraction**: Trained to extract scale-invariant and pose-tolerant facial facial landmarks.
+- **Robust Feature Extraction**: Trained to extract scale-invariant and pose-tolerant facial landmarks.
 
 ---
 
@@ -201,6 +204,8 @@ python train_model.py
 
 ```text
 facial-emotion-recognation-fullstack-main/
+├── assets/                     # Repository branding & header banner graphic
+│   └── header_banner.png
 ├── dataset/                    # FER2013 dataset (train & test subsets)
 │   └── fer2013/
 ├── models/                     # Trained TensorFlow/Keras models
