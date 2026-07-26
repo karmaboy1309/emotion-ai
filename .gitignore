@@ -34,8 +34,10 @@ config.local.py
 train_log.txt
 train_output.log
 
-# Temporary Test / Debug Scripts
-test_*.py
+# Temporary Test / Debug Scripts (allow tests/ directory)
+test_debug*.py
+test_run*.py
+!tests/
 
 # Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
