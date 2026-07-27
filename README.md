@@ -134,6 +134,7 @@ Classifies facial expressions into seven standardized psychological emotion cate
 ```json
 {
   "faces_count": 1,
+  "inference_ms": 3.8,
   "faces": [
     {
       "box": [120, 85, 95, 95],
