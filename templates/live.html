@@ -141,6 +141,14 @@
                                 <span style="font-weight: 600;">Mini-Xception</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Inference Latency</span>
+                                <span style="font-weight: 600; color: var(--accent-secondary);" id="stat-latency">—</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Render FPS</span>
+                                <span style="font-weight: 600; color: var(--success);" id="stat-fps">—</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 13px;">
                                 <span style="color: var(--text-secondary);">Engine</span>
                                 <span style="font-weight: 600;" id="stat-engine">Client REST API</span>
                             </div>
@@ -166,10 +174,28 @@
             'happy': '😊', 'neutral': '😐', 'sad': '😢', 'surprise': '😲'
         };
 
+        const emotionColors = {
+            'angry': '#ef4444', 'disgust': '#10b981', 'fear': '#a855f7',
+            'happy': '#f59e0b', 'neutral': '#06b6d4', 'sad': '#3b82f6', 'surprise': '#ec4899'
+        };
+
         let mediaStream = null;
         let apiInterval = null;
         let isPaused = false;
         let isProcessing = false;
+        let animationFrameId = null;
+
+        // Stats tracking
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let currentFps = 60;
+
+        // Smooth state tracking
+        const EMA_ALPHA = 0.25;
+        let smoothedScores = { angry: 0, disgust: 0, fear: 0, happy: 0, neutral: 0, sad: 0, surprise: 0 };
+        
+        let targetFaces = [];
+        let currentFaces = []; // Stores interpolated render boxes
 
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
@@ -194,8 +220,11 @@
                 offscreenCanvas.width = 320;
                 offscreenCanvas.height = 240;
 
-                // Process frames every 120ms (~8 FPS for smooth low-latency)
-                apiInterval = setInterval(captureAndDetect, 120);
+                // Process inference every 90ms (~11 FPS inference rate)
+                apiInterval = setInterval(captureAndDetect, 90);
+
+                // Launch 60 FPS smooth rendering loop
+                renderLoop();
 
             } catch (err) {
                 console.warn("Browser camera access failed, trying server stream fallback:", err);
@@ -211,7 +240,7 @@
             isProcessing = true;
 
             offscreenCtx.drawImage(video, 0, 0, 320, 240);
-            const dataUrl = offscreenCanvas.toDataURL('image/jpeg', 0.6);
+            const dataUrl = offscreenCanvas.toDataURL('image/jpeg', 0.65);
 
             try {
                 const res = await fetch('/api/detect_emotion', {
@@ -220,8 +249,12 @@
                     body: JSON.stringify({ image: dataUrl })
                 });
                 const data = await res.json();
-                drawOverlay(data.faces || [], video.videoWidth || 640, video.videoHeight || 480);
-                updateStatsFromData(data);
+                
+                if (data.inference_ms !== undefined) {
+                    document.getElementById('stat-latency').textContent = data.inference_ms + ' ms';
+                }
+
+                updateTargetState(data);
             } catch (e) {
                 console.error("Client API frame detection error:", e);
             } finally {
@@ -229,65 +262,183 @@
             }
         }
 
-        function drawOverlay(faces, vW, vH) {
-            const overlay = document.getElementById('overlay-canvas');
-            const ctx = overlay.getContext('2d');
-            if (overlay.width !== vW || overlay.height !== vH) {
-                overlay.width = vW;
-                overlay.height = vH;
-            }
-            ctx.clearRect(0, 0, vW, vH);
+        function updateTargetState(data) {
+            const video = document.getElementById('webcam-video');
+            const vW = video ? (video.videoWidth || 640) : 640;
+            const vH = video ? (video.videoHeight || 480) : 480;
 
             const scaleX = vW / 320.0;
             const scaleY = vH / 240.0;
 
-            faces.forEach(face => {
-                const [x, y, w, h] = face.box;
-                const renderX = x * scaleX;
-                const renderY = y * scaleY;
-                const renderW = w * scaleX;
-                const renderH = h * scaleY;
-
-                // Bounding Box
-                ctx.strokeStyle = 'rgb(138, 43, 226)';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(renderX, renderY, renderW, renderH);
-
-                // Label Background
-                ctx.fillStyle = 'rgba(138, 43, 226, 0.9)';
-                ctx.fillRect(renderX, renderY - 35, renderW, 35);
-
-                // Text Label
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 16px Inter, sans-serif';
-                ctx.fillText(`${face.emoji} ${face.emotion} ${face.confidence}%`, renderX + 6, renderY - 10);
-            });
-        }
-
-        function updateStatsFromData(data) {
             const count = data.faces_count || 0;
             document.getElementById('stat-faces').textContent = count;
             document.getElementById('face-count-overlay').textContent = count;
 
             if (data.faces && data.faces.length > 0) {
-                const topFace = data.faces[0];
-                document.getElementById('stat-emoji').textContent = topFace.emoji || '🎭';
-                document.getElementById('stat-label').textContent = topFace.emotion;
-                document.getElementById('stat-confidence').textContent = topFace.confidence + '% confidence';
+                targetFaces = data.faces.map(f => {
+                    const [x, y, w, h] = f.box;
+                    return {
+                        x: x * scaleX,
+                        y: y * scaleY,
+                        w: w * scaleX,
+                        h: h * scaleY,
+                        emotion: f.emotion,
+                        emoji: f.emoji,
+                        confidence: f.confidence,
+                        scores: f.scores
+                    };
+                });
 
+                // Apply Exponential Moving Average (EMA) smoothing to main face scores
+                const topFace = data.faces[0];
                 if (topFace.scores) {
-                    for (const [emotion, score] of Object.entries(topFace.scores)) {
-                        const bar = document.getElementById('bar-' + emotion);
-                        const val = document.getElementById('val-' + emotion);
-                        if (bar) bar.style.width = score + '%';
-                        if (val) val.textContent = score.toFixed(0) + '%';
+                    for (const [emotion, rawScore] of Object.entries(topFace.scores)) {
+                        smoothedScores[emotion] = smoothedScores[emotion] * (1 - EMA_ALPHA) + rawScore * EMA_ALPHA;
                     }
                 }
+
+                // Find primary emotion from smoothed scores
+                let primaryEmotion = 'neutral';
+                let maxScore = -1;
+                for (const [em, sc] of Object.entries(smoothedScores)) {
+                    if (sc > maxScore) {
+                        maxScore = sc;
+                        primaryEmotion = em;
+                    }
+                }
+
+                document.getElementById('stat-emoji').textContent = emojiMap[primaryEmotion] || '🎭';
+                document.getElementById('stat-label').textContent = primaryEmotion;
+                document.getElementById('stat-confidence').textContent = maxScore.toFixed(1) + '% confidence';
+
+                // Update smoothed UI progress bars
+                for (const [emotion, score] of Object.entries(smoothedScores)) {
+                    const bar = document.getElementById('bar-' + emotion);
+                    const val = document.getElementById('val-' + emotion);
+                    if (bar) bar.style.width = Math.min(100, Math.max(0, score)).toFixed(1) + '%';
+                    if (val) val.textContent = Math.min(100, Math.max(0, score)).toFixed(0) + '%';
+                }
+
             } else {
+                targetFaces = [];
                 document.getElementById('stat-emoji').textContent = '🎭';
                 document.getElementById('stat-label').textContent = 'No Face';
                 document.getElementById('stat-confidence').textContent = '—';
             }
+        }
+
+        // 60 FPS Render Loop with Smooth LERP Interpolation
+        function renderLoop() {
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                currentFps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                document.getElementById('stat-fps').textContent = currentFps + ' FPS';
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            const video = document.getElementById('webcam-video');
+            const overlay = document.getElementById('overlay-canvas');
+            if (video && overlay && video.videoWidth && video.videoHeight) {
+                if (overlay.width !== video.videoWidth || overlay.height !== video.videoHeight) {
+                    overlay.width = video.videoWidth;
+                    overlay.height = video.videoHeight;
+                }
+
+                const ctx = overlay.getContext('2d');
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+                // Smoothly lerp currentFaces toward targetFaces
+                const LERP_SPEED = 0.3;
+                if (targetFaces.length === 0) {
+                    currentFaces = [];
+                } else {
+                    if (currentFaces.length !== targetFaces.length) {
+                        currentFaces = targetFaces.map(tf => ({ ...tf }));
+                    } else {
+                        for (let i = 0; i < targetFaces.length; i++) {
+                            const tf = targetFaces[i];
+                            const cf = currentFaces[i];
+                            cf.x += (tf.x - cf.x) * LERP_SPEED;
+                            cf.y += (tf.y - cf.y) * LERP_SPEED;
+                            cf.w += (tf.w - cf.w) * LERP_SPEED;
+                            cf.h += (tf.h - cf.h) * LERP_SPEED;
+                            cf.emotion = tf.emotion;
+                            cf.emoji = tf.emoji;
+                            cf.confidence = tf.confidence;
+                        }
+                    }
+                }
+
+                // Render HUD Reticles for all current faces
+                currentFaces.forEach(face => drawHudReticle(ctx, face));
+            }
+
+            animationFrameId = requestAnimationFrame(renderLoop);
+        }
+
+        function drawHudReticle(ctx, face) {
+            const { x, y, w, h, emotion, emoji, confidence } = face;
+            const color = emotionColors[emotion] || '#8b5cf6';
+
+            // Semi-transparent box fill
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
+            ctx.fillRect(x, y, w, h);
+
+            // Bounding Box outline
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
+
+            // Futuristic Corner Brackets
+            const bracketLen = Math.min(w, h) * 0.2;
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#ffffff';
+
+            // Top-Left Corner
+            ctx.beginPath();
+            ctx.moveTo(x, y + bracketLen);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x + bracketLen, y);
+            ctx.stroke();
+
+            // Top-Right Corner
+            ctx.beginPath();
+            ctx.moveTo(x + w - bracketLen, y);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x + w, y + bracketLen);
+            ctx.stroke();
+
+            // Bottom-Left Corner
+            ctx.beginPath();
+            ctx.moveTo(x, y + h - bracketLen);
+            ctx.lineTo(x, y + h);
+            ctx.lineTo(x + bracketLen, y + h);
+            ctx.stroke();
+
+            // Bottom-Right Corner
+            ctx.beginPath();
+            ctx.moveTo(x + w - bracketLen, y + h);
+            ctx.lineTo(x + w, y + h);
+            ctx.lineTo(x + w, y + h - bracketLen);
+            ctx.stroke();
+
+            // Floating Header Badge
+            const badgeHeight = 32;
+            const badgeY = Math.max(badgeHeight, y - 12);
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(x, badgeY - badgeHeight, Math.max(w, 160), badgeHeight, 6);
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Text Label inside Badge
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '600 14px Inter, sans-serif';
+            ctx.fillText(`${emoji} ${emotion.toUpperCase()} (${confidence.toFixed(0)}%)`, x + 8, badgeY - 10);
         }
 
         function startServerFallback() {
@@ -307,6 +458,7 @@
 
         function stopCamera() {
             if (apiInterval) clearInterval(apiInterval);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
                 mediaStream = null;
