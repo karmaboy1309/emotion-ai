@@ -48,6 +48,10 @@ test_run*.py
 *.swp
 *.swo
 
+# Uploaded Files
+static/uploads/*
+!static/uploads/.gitkeep
+
 # OS System Files
 .DS_Store
 Thumbs.db
