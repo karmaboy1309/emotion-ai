@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, Response, jsonify
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 import numpy as np
 from PIL import Image, UnidentifiedImageError
@@ -30,6 +31,17 @@ model_lock = threading.Lock()
 
 # Model Load
 model = load_model("models/emotion_model.keras")
+
+# Compiled tf.function warm-up for fast low-latency CPU inference
+@tf.function(reduce_retracing=True)
+def _fast_model_predict(batch_tensor):
+    return model(batch_tensor, training=False)
+
+try:
+    _dummy_input = tf.zeros((1, 48, 48, 1), dtype=tf.float32)
+    _ = _fast_model_predict(_dummy_input)
+except Exception as _e:
+    print(f"Model warm-up status: {_e}")
 
 # Emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
@@ -90,8 +102,10 @@ def predict_faces_batch(face_crops):
 
     batch = np.array(face_crops, dtype=np.float32)
     with model_lock:
-        predictions = model(batch, training=False).numpy()
+        tensor = tf.convert_to_tensor(batch, dtype=tf.float32)
+        predictions = _fast_model_predict(tensor).numpy()
     return predictions
+
 
 
 # Camera manager for proper resource handling (Server-side stream fallback)
@@ -259,12 +273,13 @@ def api_detect_emotion():
     """
     Asynchronous client-side REST API for real-time live webcam emotion detection.
     Accepts Base64 image payload from browser webcam canvas.
-    Returns detected faces, bounding boxes, predictions, and confidence distributions.
+    Returns detected faces, bounding boxes, predictions, confidence distributions, and inference latency.
     """
+    t_start = time.perf_counter()
     try:
         data = request.get_json(silent=True)
         if not data or "image" not in data:
-            return jsonify({"error": "Missing image payload", "faces": []}), 400
+            return jsonify({"error": "Missing image payload", "faces": [], "inference_ms": 0}), 400
 
         image_data = data["image"]
         if "," in image_data:
@@ -275,7 +290,7 @@ def api_detect_emotion():
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
         if frame is None:
-            return jsonify({"error": "Failed to decode image frame", "faces": []}), 400
+            return jsonify({"error": "Failed to decode image frame", "faces": [], "inference_ms": 0}), 400
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -286,8 +301,10 @@ def api_detect_emotion():
             minSize=(30, 30)
         )
 
+        inference_ms = round((time.perf_counter() - t_start) * 1000, 1)
+
         if len(faces) == 0:
-            return jsonify({"faces_count": 0, "faces": []}), 200
+            return jsonify({"faces_count": 0, "faces": [], "inference_ms": inference_ms}), 200
 
         face_crops = []
         valid_coords = []
@@ -305,7 +322,8 @@ def api_detect_emotion():
             valid_coords.append((x, y, w, h))
 
         if not face_crops:
-            return jsonify({"faces_count": 0, "faces": []}), 200
+            inference_ms = round((time.perf_counter() - t_start) * 1000, 1)
+            return jsonify({"faces_count": 0, "faces": [], "inference_ms": inference_ms}), 200
 
         batch_predictions = predict_faces_batch(face_crops)
         faces_data = []
@@ -325,13 +343,16 @@ def api_detect_emotion():
                 "scores": scores
             })
 
+        inference_ms = round((time.perf_counter() - t_start) * 1000, 1)
         return jsonify({
             "faces_count": len(faces_data),
-            "faces": faces_data
+            "faces": faces_data,
+            "inference_ms": inference_ms
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e), "faces": []}), 500
+        inference_ms = round((time.perf_counter() - t_start) * 1000, 1)
+        return jsonify({"error": str(e), "faces": [], "inference_ms": inference_ms}), 500
 
 
 # Route to start the camera (Server-side fallback)
