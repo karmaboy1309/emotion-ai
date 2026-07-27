@@ -38,25 +38,54 @@
 
             <!-- Main Content Grid -->
             <div class="main-grid">
-                <!-- Upload Card -->
+                <!-- Upload / Analyzed Photo Card -->
                 <div class="glass-card">
                     <div class="glass-card-header">
                         <div class="icon">📷</div>
                         <div>
-                            <h2>Image Upload</h2>
-                            <p>Drag & drop or click to upload</p>
+                            <h2>{% if result and image %}Analyzed Photo{% else %}Image Upload{% endif %}</h2>
+                            <p>{% if result and image %}Face bounding box & emotion detection{% else %}Drag & drop or click to upload photo{% endif %}</p>
                         </div>
                     </div>
-                    <form action="/" method="POST" enctype="multipart/form-data" id="upload-form">
+
+                    {% if result and image %}
+                    <!-- Analyzed Photo Display (In Same Position) -->
+                    <div class="analyzed-display-card" id="analyzed-display-card">
+                        <div class="analyzed-image-container">
+                            <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="Analyzed Photo with Emotion Box" class="analyzed-image">
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-full mt-16" onclick="resetUploadForm()">
+                            🔄 Upload Another Photo
+                        </button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Upload Form (Visible by default or when resetting) -->
+                    <form action="/" method="POST" enctype="multipart/form-data" id="upload-form" {% if result and image %}style="display: none;"{% endif %}>
                         <div class="upload-zone" id="upload-zone">
-                            <div class="upload-icon">🖼️</div>
-                            <h3>Choose an image</h3>
-                            <p>PNG, JPG or JPEG • Max 10MB</p>
+                            <!-- Default Dropzone State -->
+                            <div id="upload-default-state">
+                                <div class="upload-icon">🖼️</div>
+                                <h3>Choose an image</h3>
+                                <p>PNG, JPG, JPEG, WEBP, AVIF • Max 10MB</p>
+                            </div>
+
+                            <!-- Instant Preview State on File Selection -->
+                            <div id="upload-preview-state" style="display: none;">
+                                <div class="preview-thumbnail-wrapper">
+                                    <img id="preview-img" src="" alt="Uploaded Image Preview" class="preview-img">
+                                </div>
+                                <div class="preview-badge">
+                                    <span class="preview-check">✅</span> <span id="preview-filename">Selected Image</span>
+                                </div>
+                                <p style="color: var(--accent-secondary); font-size: 12px; margin-top: 4px;">Click or drop another file to change</p>
+                            </div>
+
                             <div class="file-input-wrapper">
                                 <input type="file" name="image" id="image-input" accept="image/*" required>
                             </div>
-                            <div class="file-name-display" id="file-name"></div>
                         </div>
+
                         <button type="submit" class="btn btn-primary btn-full mt-24" id="predict-btn">
                             <span class="btn-text">🔍 Analyze Emotion</span>
                             <span class="spinner"></span>
@@ -121,23 +150,6 @@
                 </div>
             </div>
 
-            <!-- Result Image -->
-            {% if result and image %}
-            <div class="glass-card mt-32 text-center" style="animation: fadeInUp 0.4s ease;">
-                <div class="glass-card-header" style="justify-content: center;">
-                    <div class="icon">🖼️</div>
-                    <div>
-                        <h2>Processed Image</h2>
-                        <p>Detected faces highlighted with emotion labels</p>
-                    </div>
-                </div>
-                <div class="result-image-container">
-                    <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="Analyzed Image"
-                        class="result-image">
-                </div>
-            </div>
-            {% endif %}
-
             <!-- Live Detection CTA -->
             <div class="live-cta">
                 <a href="/live" class="live-btn">
@@ -195,18 +207,30 @@
 
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <script>
-        // File upload interaction
         const uploadZone = document.getElementById('upload-zone');
         const imageInput = document.getElementById('image-input');
-        const fileNameDisplay = document.getElementById('file-name');
         const predictBtn = document.getElementById('predict-btn');
+        const defaultState = document.getElementById('upload-default-state');
+        const previewState = document.getElementById('upload-preview-state');
+        const previewImg = document.getElementById('preview-img');
+        const previewFilename = document.getElementById('preview-filename');
+
+        function handleFileSelect(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImg.src = e.target.result;
+                previewFilename.textContent = file.name;
+                defaultState.style.display = 'none';
+                previewState.style.display = 'block';
+                uploadZone.classList.add('has-file');
+            };
+            reader.readAsDataURL(file);
+        }
 
         imageInput.addEventListener('change', function () {
-            if (this.files.length > 0) {
-                fileNameDisplay.textContent = '📎 ' + this.files[0].name;
-                fileNameDisplay.classList.add('visible');
-                uploadZone.style.borderColor = 'var(--accent-primary)';
-                uploadZone.style.background = 'rgba(139, 92, 246, 0.05)';
+            if (this.files && this.files[0]) {
+                handleFileSelect(this.files[0]);
             }
         });
 
@@ -223,12 +247,24 @@
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadZone.classList.remove('dragging');
-            if (e.dataTransfer.files.length > 0) {
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                 imageInput.files = e.dataTransfer.files;
-                fileNameDisplay.textContent = '📎 ' + e.dataTransfer.files[0].name;
-                fileNameDisplay.classList.add('visible');
+                handleFileSelect(e.dataTransfer.files[0]);
             }
         });
+
+        function resetUploadForm() {
+            const analyzedCard = document.getElementById('analyzed-display-card');
+            const uploadForm = document.getElementById('upload-form');
+            if (analyzedCard) analyzedCard.style.display = 'none';
+            if (uploadForm) {
+                uploadForm.style.display = 'block';
+                imageInput.value = '';
+                defaultState.style.display = 'block';
+                previewState.style.display = 'none';
+                uploadZone.classList.remove('has-file');
+            }
+        }
 
         // Submit loading state
         document.getElementById('upload-form').addEventListener('submit', function () {
