@@ -237,7 +237,7 @@ facial-emotion-recognation-fullstack-main/
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
-Developed with ❤️ by **[Anurag Pandey](https://github.com/karmaboy1309)**.
-- 📧 Email: `anurag077269@gmail.com`
-- 💼 LinkedIn: [Anurag Pandey](https://www.linkedin.com/in/anurag-pandey-704479253/)
+Developed with ❤️ by **[Darshan Makwana](https://github.com/karmaboy1309)**.
+- 📧 Email: `darshanmakwana1305@gmail.com`
+- 💼 LinkedIn: [Darshan Makwana](https://www.linkedin.com/in/darshanmakwana1305/)
 - 🐙 GitHub: [@karmaboy1309](https://github.com/karmaboy1309)
